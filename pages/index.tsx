@@ -1,21 +1,63 @@
+"use client";
 import Image from "next/image";
-import { useState } from "react";
-import { PROPERTYLISTINGSAMPLE, HERO_BG, FILTERS } from "@/constants";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import Pill from "@/components/common/Pill";
+import { HERO_BG, FILTERS } from "@/constants";
 
 export default function Home() {
   const [activeFilter, setActiveFilter] = useState<string>("");
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // If a filter is selected, show properties whose category array includes it
+  // Fetch properties from API
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const response = await axios.get(
+          "http://127.0.0.1:8000/api/properties/"
+        );
+        setProperties(response.data);
+      } catch (err: any) {
+        console.error("Error fetching properties:", err);
+        setError("Failed to load properties. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperties();
+  }, []);
+
+  // Apply category filter
   const filteredProps = activeFilter
-    ? PROPERTYLISTINGSAMPLE.filter((p) =>
-        p.category.some((c) => c.toLowerCase() === activeFilter.toLowerCase())
+    ? properties.filter((p) =>
+        p.category?.some(
+          (c: string) => c.toLowerCase() === activeFilter.toLowerCase()
+        )
       )
-    : PROPERTYLISTINGSAMPLE;
+    : properties;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen text-lg font-semibold">
+        Loading properties...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-500 font-semibold">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero Section */}
       <section className="relative h-[60vh] flex flex-col justify-center items-center text-white text-center">
         <Image
           src={HERO_BG}
@@ -48,7 +90,7 @@ export default function Home() {
         ))}
       </section>
 
-      {/* Listings */}
+      {/* Property Listings */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-12">
         {filteredProps.length === 0 && (
           <p className="col-span-full text-center text-gray-500">
@@ -56,17 +98,13 @@ export default function Home() {
           </p>
         )}
         {filteredProps.map((prop) => (
-          <div
-            key={prop.name}
-            className="border rounded-xl overflow-hidden shadow hover:shadow-lg transition"
+          <Link
+            key={prop.id || prop.property_id}
+            href={`/property/${prop.property_id || prop.id}`}
+            className="border rounded-xl overflow-hidden shadow hover:shadow-lg transition block"
           >
-            {/* <img
-              src={prop.image}
-              alt={prop.name}
-              className="h-56 w-full object-cover"
-            /> */}
             <Image
-              src={prop.image}
+              src={prop.image || "/assets/placeholder.jpg"}
               alt={prop.name}
               width={400}
               height={224}
@@ -75,25 +113,66 @@ export default function Home() {
             <div className="p-4">
               <h3 className="font-semibold text-lg">{prop.name}</h3>
               <p className="text-sm text-gray-500">
-                {prop.address.city}, {prop.address.country}
+                {prop.address?.city}, {prop.address?.country}
               </p>
               <p className="mt-2 text-pink-600 font-bold">
-                ${prop.price} / night
+                ${prop.pricepernight} / night
+              </p>
+              <p className="text-yellow-500 text-sm">⭐ {prop.rating}</p>
+            </div>
+          </Link>
+        ))}
+      </section>
+      {/* <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-12">
+        {filteredProps.length === 0 && (
+          <p className="col-span-full text-center text-gray-500">
+            No properties match "{activeFilter}"
+          </p>
+        )}
+        {filteredProps.map((prop) => (
+          <div
+            key={prop.id}
+            className="border rounded-xl overflow-hidden shadow hover:shadow-lg transition"
+          >
+            <Image
+              src={prop.image || "/assets/placeholder.jpg"}
+              alt={prop.name}
+              width={400}
+              height={224}
+              className="h-56 w-full object-cover"
+            />
+            <div className="p-4">
+              <h3 className="font-semibold text-lg">{prop.name}</h3>
+              <p className="text-sm text-gray-500">
+                {prop.address?.city}, {prop.address?.country}
+              </p>
+              <p className="mt-2 text-pink-600 font-bold">
+                ${prop.pricepernight} / night
               </p>
               <p className="text-yellow-500 text-sm">⭐ {prop.rating}</p>
             </div>
           </div>
         ))}
-      </section>
+      </section> */}
     </div>
   );
 }
 
 // import Image from "next/image";
+// import { useState } from "react";
 // import { PROPERTYLISTINGSAMPLE, HERO_BG, FILTERS } from "@/constants";
 // import Pill from "@/components/common/Pill";
 
 // export default function Home() {
+//   const [activeFilter, setActiveFilter] = useState<string>("");
+
+//   // If a filter is selected, show properties whose category array includes it
+//   const filteredProps = activeFilter
+//     ? PROPERTYLISTINGSAMPLE.filter((p) =>
+//         p.category.some((c) => c.toLowerCase() === activeFilter.toLowerCase())
+//       )
+//     : PROPERTYLISTINGSAMPLE;
+
 //   return (
 //     <div>
 //       {/* Hero */}
@@ -116,20 +195,41 @@ export default function Home() {
 //       {/* Filters */}
 //       <section className="flex flex-wrap gap-3 justify-center my-8">
 //         {FILTERS.map((f) => (
-//           <Pill key={f} label={f} />
+//           <Pill
+//             key={f}
+//             label={f}
+//             onClick={() => setActiveFilter((prev) => (prev === f ? "" : f))}
+//             className={
+//               activeFilter === f
+//                 ? "bg-pink-500 text-white"
+//                 : "bg-gray-100 hover:bg-gray-200"
+//             }
+//           />
 //         ))}
 //       </section>
 
 //       {/* Listings */}
 //       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-12">
-//         {PROPERTYLISTINGSAMPLE.map((prop) => (
+//         {filteredProps.length === 0 && (
+//           <p className="col-span-full text-center text-gray-500">
+//             No properties match "{activeFilter}"
+//           </p>
+//         )}
+//         {filteredProps.map((prop) => (
 //           <div
 //             key={prop.name}
 //             className="border rounded-xl overflow-hidden shadow hover:shadow-lg transition"
 //           >
-//             <img
+//             {/* <img
 //               src={prop.image}
 //               alt={prop.name}
+//               className="h-56 w-full object-cover"
+//             /> */}
+//             <Image
+//               src={prop.image}
+//               alt={prop.name}
+//               width={400}
+//               height={224}
 //               className="h-56 w-full object-cover"
 //             />
 //             <div className="p-4">
